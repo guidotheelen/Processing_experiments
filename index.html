@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chladni Pattern Creator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <main class="layout">
+      <section class="sketch-panel">
+        <div class="panel-header">
+          <p class="eyebrow">Processing Experiment</p>
+          <h1>Chladni Pattern Creator</h1>
+          <p class="lede">
+            Browser port of <code>Chlandni_pattern_creator_circle3.pde</code>.
+            Drag inside the circle to pan, use the mouse wheel to zoom, and press reset to restore the default view.
+          </p>
+        </div>
+        <div id="sketch-shell" class="sketch-shell"></div>
+      </section>
+
+      <aside class="controls-panel">
+        <div class="control-group">
+          <div class="control-copy">
+            <h2>Controls</h2>
+            <p>The sketch redraws on each change. Higher density produces cleaner patterns and heavier renders.</p>
+          </div>
+          <button id="reset-view" class="ghost-button" type="button">Reset View</button>
+        </div>
+
+        <label class="control">
+          <span>M frequency</span>
+          <strong id="mFreq-value"></strong>
+          <input id="mFreq" type="range" min="0.5" max="12" step="0.01" value="4">
+        </label>
+
+        <label class="control">
+          <span>N frequency</span>
+          <strong id="nFreq-value"></strong>
+          <input id="nFreq" type="range" min="0.5" max="12" step="0.01" value="7">
+        </label>
+
+        <label class="control">
+          <span>Thickness</span>
+          <strong id="thickness-value"></strong>
+          <input id="thickness" type="range" min="0.003" max="0.06" step="0.001" value="0.02">
+        </label>
+
+        <label class="control">
+          <span>Density</span>
+          <strong id="density-value"></strong>
+          <input id="density" type="range" min="10000" max="140000" step="1000" value="90000">
+        </label>
+
+        <label class="control">
+          <span>Contrast</span>
+          <strong id="contrast-value"></strong>
+          <input id="contrast" type="range" min="0.3" max="3" step="0.01" value="1">
+        </label>
+
+        <label class="control">
+          <span>Radial bias</span>
+          <strong id="radialBias-value"></strong>
+          <input id="radialBias" type="range" min="0.2" max="3" step="0.01" value="1">
+        </label>
+
+        <section class="status-card">
+          <h2>Viewport</h2>
+          <dl>
+            <div>
+              <dt>Offset X</dt>
+              <dd id="offsetX-value">0.000</dd>
+            </div>
+            <div>
+              <dt>Offset Y</dt>
+              <dd id="offsetY-value">0.000</dd>
+            </div>
+            <div>
+              <dt>Zoom</dt>
+              <dd id="zoom-value">1.00</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+  <script src="./sketch.js"></script>
+</body>
+</html>
