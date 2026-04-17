@@ -31,6 +31,10 @@
 // Higher values show more detail but run slower.
 int maxIterations = 140;
 
+// Extra quality level used while paused.
+// This is intentionally higher so paused panning/rerenders look sharper.
+int pausedIterations = 260;
+
 // While zoom is moving, we render a faster preview so interaction feels fluid.
 // As soon as movement stops, we render full quality again.
 int previewIterations = 70;
@@ -103,7 +107,7 @@ void draw() {
     - idle   => one final full-quality render, then stop
   */
   if (zoomPaused) {
-    renderMandelbrot(maxIterations, 1);
+    renderMandelbrot(pausedIterations, 1);
     noLoop();
     return;
   }
@@ -335,8 +339,13 @@ void mouseDragged() {
   lastDragX = mouseX;
   lastDragY = mouseY;
 
-  // Preview quality while dragging for smoother interaction.
-  renderMandelbrot(previewIterations, previewSampleStep);
+  if (zoomPaused) {
+    // While paused, prioritize detail during panning.
+    renderMandelbrot(pausedIterations, 1);
+  } else {
+    // Preview quality while dragging for smoother interaction.
+    renderMandelbrot(previewIterations, previewSampleStep);
+  }
 }
 
 void mouseReleased() {
@@ -348,7 +357,8 @@ void mouseReleased() {
 
   // After drag ends, redraw at full quality.
   if (dragMoved) {
-    renderMandelbrot(maxIterations, 1);
+    int releaseIterations = zoomPaused ? pausedIterations : maxIterations;
+    renderMandelbrot(releaseIterations, 1);
   }
 }
 
@@ -361,7 +371,8 @@ void keyPressed() {
   zoomPaused = !zoomPaused;
 
   // Re-render immediately so the paused frame is always clean and current.
-  renderMandelbrot(maxIterations, 1);
+  int pauseStateIterations = zoomPaused ? pausedIterations : maxIterations;
+  renderMandelbrot(pauseStateIterations, 1);
 
   if (zoomPaused) {
     noLoop();
