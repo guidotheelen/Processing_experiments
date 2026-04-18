@@ -21,6 +21,10 @@ float darkRespawnChance = 0.016;
 float gradientSampleDistance = 3.0;
 int minSwirlFrames = 70;
 int respawnDelayJitter = 80;
+int fadeInFrames = 16;
+int fadeOutFrames = 20;
+float darkAreaDimScale = 0.28; // Alpha scale when particle is on a dark area.
+float darkDimGamma = 2.2; // >1 makes dimming stronger away from bright areas.
 
 float centerSwirlStrength = 0.34;
 float centerPullStrength = 0.010;
@@ -163,8 +167,10 @@ class Particle {
   float y;
   float vx;
   float vy;
+  float opacity;
   int age;
   int respawnDelayFrames;
+  boolean fadingOut;
 
   void respawn(boolean zeroVelocity) {
     chooseBrightSpawnPosition(this);
@@ -179,6 +185,8 @@ class Particle {
 
     respawnDelayFrames = minSwirlFrames + int(random(respawnDelayJitter + 1));
     age = int(random(respawnDelayFrames + 1));
+    opacity = 0;
+    fadingOut = false;
   }
 
   void update() {
@@ -240,12 +248,33 @@ class Particle {
 
     float localB = brightnessAtCanvas(x, y);
     float darkness = 1.0 - localB;
-    if (age > respawnDelayFrames && random(1) < darkRespawnChance * darkness) {
-      respawn(false);
+    if (!fadingOut && age > respawnDelayFrames && random(1) < darkRespawnChance * darkness) {
+      fadingOut = true;
     }
+
+    if (fadingOut) {
+      opacity -= 1.0 / max(1, fadeOutFrames);
+      if (opacity <= 0) {
+        respawn(false);
+        return;
+      }
+    } else {
+      opacity += 1.0 / max(1, fadeInFrames);
+    }
+
+    opacity = constrain(opacity, 0, 1);
   }
 
   void render() {
+    if (opacity <= 0.01) {
+      return;
+    }
+
+    float localB = brightnessAtCanvas(x, y);
+    float lightMix = constrain((localB - brightnessThreshold) / (1.0 - brightnessThreshold), 0, 1);
+    lightMix = pow(lightMix, darkDimGamma);
+    float areaAlphaScale = lerp(darkAreaDimScale, 1.0, lightMix);
+    fill(255, 255 * opacity * areaAlphaScale);
     square(x, y, pointSize);
   }
 }

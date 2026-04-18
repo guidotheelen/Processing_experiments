@@ -7,20 +7,24 @@ int canvasWidth = 700;
 int canvasHeight = 700;
 int pointSize = 2;
 
-int particleCount = 22000;
+int particleCount = 30000;
 float brightnessThreshold = 0.06;
 float spawnBias = 2.4;
 int spawnAttempts = 36;
 
-float driftStrength = 0.20;
-float lightAttractStrength = 1.18;
-float velocityDamping = 0.96;
-float maxSpeed = 1.9;
-float brightStickiness = 0.80;
-float darkRespawnChance = 0.016;
-float gradientSampleDistance = 3.0;
+float driftStrength = 0.1;
+float lightAttractStrength = 1.6;
+float velocityDamping = 2.0;
+float maxSpeed = 1.5;
+float brightStickiness = 0.90;
+float darkRespawnChance = 0.5;
+float gradientSampleDistance = 5.0;
 int minSwirlFrames = 70;
 int respawnDelayJitter = 80;
+int fadeInFrames = 5;
+int fadeOutFrames = 5;
+float darkAreaDimScale = 0.5; // Alpha scale when particle is on a dark area.
+float darkDimGamma = 2.2; // >1 makes dimming stronger away from bright areas.
 
 float centerSwirlStrength = 0.34;
 float centerPullStrength = 0.010;
@@ -156,8 +160,10 @@ class Particle {
   float y;
   float vx;
   float vy;
+  float opacity;
   int age;
   int respawnDelayFrames;
+  boolean fadingOut;
 
   void respawn(boolean zeroVelocity) {
     chooseBrightSpawnPosition(this);
@@ -172,6 +178,8 @@ class Particle {
 
     respawnDelayFrames = minSwirlFrames + int(random(respawnDelayJitter + 1));
     age = int(random(respawnDelayFrames + 1));
+    opacity = 0;
+    fadingOut = false;
   }
 
   void update() {
@@ -233,12 +241,33 @@ class Particle {
 
     float localB = brightnessAtCanvas(x, y);
     float darkness = 1.0 - localB;
-    if (age > respawnDelayFrames && random(1) < darkRespawnChance * darkness) {
-      respawn(false);
+    if (!fadingOut && age > respawnDelayFrames && random(1) < darkRespawnChance * darkness) {
+      fadingOut = true;
     }
+
+    if (fadingOut) {
+      opacity -= 1.0 / max(1, fadeOutFrames);
+      if (opacity <= 0) {
+        respawn(false);
+        return;
+      }
+    } else {
+      opacity += 1.0 / max(1, fadeInFrames);
+    }
+
+    opacity = constrain(opacity, 0, 1);
   }
 
   void render() {
+    if (opacity <= 0.01) {
+      return;
+    }
+
+    float localB = brightnessAtCanvas(x, y);
+    float lightMix = constrain((localB - brightnessThreshold) / (1.0 - brightnessThreshold), 0, 1);
+    lightMix = pow(lightMix, darkDimGamma);
+    float areaAlphaScale = lerp(darkAreaDimScale, 1.0, lightMix);
+    fill(255, 255 * opacity * areaAlphaScale);
     square(x, y, pointSize);
   }
 }
