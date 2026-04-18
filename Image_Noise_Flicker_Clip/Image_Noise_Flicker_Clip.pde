@@ -7,33 +7,35 @@ int canvasWidth = 700;
 int canvasHeight = 700;
 int pointSize = 2;
 
-int particleCount = 22000;
+int particleCount = 30000;
 float brightnessThreshold = 0.06;
-float spawnBias = 2.4;
+float spawnBias = 5.4;
 int spawnAttempts = 36;
 
-float driftStrength = 0.20;
-float lightAttractStrength = 1.18;
-float velocityDamping = 0.96;
-float maxSpeed = 1.9;
-float brightStickiness = 0.80;
-float darkRespawnChance = 0.016;
-float gradientSampleDistance = 3.0;
+float driftStrength = 0.1;
+float lightAttractStrength = 1.6;
+float velocityDamping = 2.0;
+float maxSpeed = 1.5;
+float brightStickiness = 0.90;
+float darkRespawnChance = 0.5;
+float gradientSampleDistance = 5.0;
 int minSwirlFrames = 70;
 int respawnDelayJitter = 80;
-int fadeInFrames = 16;
-int fadeOutFrames = 20;
-float darkAreaDimScale = 0.28; // Alpha scale when particle is on a dark area.
+int fadeInFrames = 5;
+int fadeOutFrames = 5;
+float darkAreaDimScale = 0.5; // Alpha scale when particle is on a dark area.
 float darkDimGamma = 2.2; // >1 makes dimming stronger away from bright areas.
 
-float centerSwirlStrength = 0.34;
-float centerPullStrength = 0.010;
-float edgeVelocityScale = 0.35; // Lower values make particles slower near the outer radius.
+float centerSwirlStrength = 0.5;
+float centerPullStrength = 0.03;
+float edgeVelocityScale = 0.8; // Lower values make particles slower near the outer radius.
+float radialSlowdownRadiusScale = 2.1; // >1 pushes slowdown ring farther out.
+float offscreenRespawnMargin = 280; // Allow particles to travel well beyond screen bounds.
 
-float spiralAngleStep = 0.48;
-float spiralRadiusStep = 1.7;
-float spiralJitter = 8.0;
-float spiralCenterYOffset = -50.0;
+float spiralAngleStep = 0.1;
+float spiralRadiusStep = 0.6;
+float spiralJitter = 150.0;
+float spiralCenterYOffset = -35.0;
 
 boolean keepAspectRatio = true;
 
@@ -208,7 +210,8 @@ class Particle {
     float ny = dy / dist;
     float tx = -ny;
     float ty = nx;
-    float swirlFalloff = 1.0 - constrain(dist / max(1, spiralMaxRadius), 0, 1);
+    float swirlRadius = max(1, spiralMaxRadius * radialSlowdownRadiusScale);
+    float swirlFalloff = 1.0 - constrain(dist / swirlRadius, 0, 1);
     float swirl = centerSwirlStrength * (0.35 + 0.65 * swirlFalloff);
 
     ax += tx * swirl;
@@ -229,21 +232,16 @@ class Particle {
 
     // In brighter areas, particles move more slowly and appear to "stick".
     float moveScale = lerp(1.0, 0.32, constrain(b * brightStickiness, 0, 1));
-    float radialNorm = constrain(dist / max(1, spiralMaxRadius), 0, 1);
+    float radialNorm = constrain(dist / swirlRadius, 0, 1);
     float radialSpeedScale = lerp(1.0, edgeVelocityScale, radialNorm);
     x += vx * moveScale * radialSpeedScale;
     y += vy * moveScale * radialSpeedScale;
 
-    if (x < offsetX) {
-      x += drawWidth;
-    } else if (x >= offsetX + drawWidth) {
-      x -= drawWidth;
-    }
-
-    if (y < offsetY) {
-      y += drawHeight;
-    } else if (y >= offsetY + drawHeight) {
-      y -= drawHeight;
+    if (!fadingOut) {
+      if (x < -offscreenRespawnMargin || x > width + offscreenRespawnMargin
+        || y < -offscreenRespawnMargin || y > height + offscreenRespawnMargin) {
+        fadingOut = true;
+      }
     }
 
     float localB = brightnessAtCanvas(x, y);
