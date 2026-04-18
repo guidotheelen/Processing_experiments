@@ -33,9 +33,11 @@ float spiralCenterYOffset = -50.0;
 
 boolean keepAspectRatio = true;
 
-boolean exportFrames = false;
-int maxExportFrames = 240;
-String exportPattern = "float-####.png";
+int recordFPS = 30;
+float clipDurationSeconds = 12.0;
+boolean exportFrames = true;
+int maxExportFrames = 360;
+String exportPattern = "clip/float-####.png";
 
 PImage sourceImage;
 int drawWidth;
@@ -54,7 +56,7 @@ void settings() {
 }
 
 void setup() {
-  frameRate(30);
+  frameRate(recordFPS);
   background(0);
   noStroke();
   fill(255);
@@ -72,8 +74,13 @@ void setup() {
   computeDrawArea();
   resetSpiral();
   initParticles();
+  maxExportFrames = max(1, round(clipDurationSeconds * recordFPS));
 
   println("Loaded image: " + sourceImage.width + "x" + sourceImage.height);
+  if (exportFrames) {
+    println("Recording clip frames: " + maxExportFrames + " at " + recordFPS + " FPS");
+    println("Output pattern: " + exportPattern);
+  }
 }
 
 void draw() {
