@@ -11,7 +11,7 @@
 */
 
 float noiseScale = 0.0010;
-float timeScale = 0.012;
+float timeScale = 0.002;
 float renderScale = 0.62;
 
 boolean paused = false;
@@ -35,44 +35,60 @@ void draw() {
   float noiseScaleAtRender = noiseScale / renderScale;
   int rw = lowResBuffer.width;
   int rh = lowResBuffer.height;
+  int halfW = (rw + 1) / 2;
+  int halfH = (rh + 1) / 2;
+
+  float hueDrift = frameCount * 0.55;
+  float t032 = t * 0.32;
+  float t024 = t * 0.24;
+  float t015 = t * 0.15;
+  float t020 = t * 0.20;
+  float t029 = t * 0.29;
+  float t013 = t * 0.13;
+  float t072 = t * 0.72;
+  float t050 = t * 0.50;
+  float t085 = t * 0.85;
+  float t150 = t * 1.50;
+  float t160 = t * 1.60;
+  float t420 = t * 4.20;
 
   lowResBuffer.loadPixels();
 
-  for (int y = 0; y < rh; y++) {
-    int rowStart = y * rw;
+  // Performance path: compute only one quadrant, then mirror into four.
+  for (int y = 0; y < halfH; y++) {
+    int yMirror = rh - 1 - y;
+    int rowTop = y * rw;
+    int rowBottom = yMirror * rw;
+    float py = y * noiseScaleAtRender;
 
-    for (int x = 0; x < rw; x++) {
-      // 4-way symmetry: mirror coordinates into the top-left quadrant.
-      float mirroredX = min(x, rw - 1 - x);
-      float mirroredY = min(y, rh - 1 - y);
+    for (int x = 0; x < halfW; x++) {
+      int xMirror = rw - 1 - x;
+      float px = x * noiseScaleAtRender;
 
-      float px = mirroredX * noiseScaleAtRender;
-      float pySym = mirroredY * noiseScaleAtRender;
-
-      float warpA = noise(px * 0.90 + t * 0.32, pySym * 0.85 - t * 0.24, t * 0.15);
-      float warpB = noise(px * 1.15 - t * 0.20 + 41.2, pySym * 1.10 + t * 0.29 + 20.8, -t * 0.13);
+      float warpA = noise(px * 0.90 + t032, py * 0.85 - t024, t015);
+      float warpB = noise(px * 1.15 - t020 + 41.2, py * 1.10 + t029 + 20.8, -t013);
       float fx = px + (warpA - 0.5) * 1.45;
-      float fy = pySym + (warpB - 0.5) * 1.45;
+      float fy = py + (warpB - 0.5) * 1.45;
 
       // Two-layer domain-warped noise keeps curves flowing without strobing.
-      float nA = noise(fx + t * 0.72, fy + t * 0.50, t * 0.20);
-      float nB = noise(fx * 1.70 + 31.7, fy * 1.55 + 88.3, -t * 0.15);
+      float nA = noise(fx + t072, fy + t050, t020);
+      float nB = noise(fx * 1.70 + 31.7, fy * 1.55 + 88.3, -t015);
 
       float field = nA * 0.70 + nB * 0.30;
-      float contour = abs(sin((field * 18.0 + t * 0.85) * PI));
+      float contour = abs(sin((field * 18.0 + t085) * PI));
       float lineMask = smoothStep(0.30, 0.02, contour);
       float haloMask = smoothStep(0.70, 0.12, contour);
 
-      float swirl = sin((nA * 1.8 + nB * 1.4) * TWO_PI + t * 1.5);
-      float bands = sin(field * TWO_PI * 3.9 + t * 1.6);
-      float pulse = 0.5 + 0.5 * sin(t * 4.2 + nB * TWO_PI);
+      float swirl = sin((nA * 1.8 + nB * 1.4) * TWO_PI + t150);
+      float bands = sin(field * TWO_PI * 3.9 + t160);
+      float pulse = 0.5 + 0.5 * sin(t420 + nB * TWO_PI);
 
       float hueValue =
         field * 240.0 +
         swirl * 64.0 +
         bands * 28.0 +
         lineMask * 96.0 +
-        frameCount * 0.55;
+        hueDrift;
 
       float saturation =
         78.0 +
@@ -89,7 +105,11 @@ void draw() {
         58.0 * lineMask;
       brightness = constrain(brightness, 0, 100);
 
-      lowResBuffer.pixels[rowStart + x] = color((hueValue % 360 + 360) % 360, saturation, brightness);
+      int pixelColor = color((hueValue % 360 + 360) % 360, saturation, brightness);
+      lowResBuffer.pixels[rowTop + x] = pixelColor;
+      lowResBuffer.pixels[rowTop + xMirror] = pixelColor;
+      lowResBuffer.pixels[rowBottom + x] = pixelColor;
+      lowResBuffer.pixels[rowBottom + xMirror] = pixelColor;
     }
   }
 
