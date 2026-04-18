@@ -12,12 +12,12 @@ float brightnessThreshold = 0.06;
 float spawnBias = 2.4;
 int spawnAttempts = 36;
 
-float driftStrength = 0.28;
-float lightAttractStrength = 0.88;
+float driftStrength = 0.20;
+float lightAttractStrength = 1.05;
 float velocityDamping = 0.96;
-float maxSpeed = 1.7;
-float brightStickiness = 0.72;
-float darkRespawnChance = 0.012;
+float maxSpeed = 1.9;
+float brightStickiness = 0.80;
+float darkRespawnChance = 0.016;
 float gradientSampleDistance = 3.0;
 int minSwirlFrames = 70;
 
