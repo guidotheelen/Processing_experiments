@@ -10,15 +10,24 @@ int pointSize = 2;
 int particleCount = 22000;
 float brightnessThreshold = 0.06;
 float spawnBias = 2.4;
-int spawnAttempts = 28;
+int spawnAttempts = 36;
 
 float driftStrength = 0.28;
-float lightAttractStrength = 0.70;
-float velocityDamping = 0.93;
+float lightAttractStrength = 0.88;
+float velocityDamping = 0.96;
 float maxSpeed = 1.7;
 float brightStickiness = 0.72;
-float darkRespawnChance = 0.018;
+float darkRespawnChance = 0.012;
 float gradientSampleDistance = 3.0;
+int minSwirlFrames = 70;
+
+float centerSwirlStrength = 0.34;
+float centerPullStrength = 0.010;
+
+float spiralAngleStep = 0.48;
+float spiralRadiusStep = 1.7;
+float spiralJitter = 8.0;
+float spiralCenterYOffset = -50.0;
 
 boolean keepAspectRatio = true;
 
@@ -32,6 +41,11 @@ int drawHeight;
 int offsetX;
 int offsetY;
 Particle[] particles;
+float spiralCenterX;
+float spiralCenterY;
+float spiralRadiusCursor;
+float spiralAngleCursor;
+float spiralMaxRadius;
 
 void settings() {
   size(canvasWidth, canvasHeight);
@@ -54,6 +68,7 @@ void setup() {
 
   sourceImage.loadPixels();
   computeDrawArea();
+  resetSpiral();
   initParticles();
 
   println("Loaded image: " + sourceImage.width + "x" + sourceImage.height);
@@ -104,9 +119,14 @@ float brightnessAtCanvas(float x, float y) {
 }
 
 boolean chooseBrightSpawnPosition(Particle p) {
+  float bestX = random(offsetX, offsetX + drawWidth);
+  float bestY = random(offsetY, offsetY + drawHeight);
+  float bestB = -1;
+
   for (int i = 0; i < spawnAttempts; i++) {
-    float x = random(offsetX, offsetX + drawWidth);
-    float y = random(offsetY, offsetY + drawHeight);
+    float[] candidate = nextSpiralSpawnPoint();
+    float x = candidate[0];
+    float y = candidate[1];
 
     float b = brightnessAtCanvas(x, y);
     float weight = pow(max(0, (b - brightnessThreshold) / (1.0 - brightnessThreshold)), spawnBias);
@@ -116,8 +136,16 @@ boolean chooseBrightSpawnPosition(Particle p) {
       p.y = y;
       return true;
     }
+
+    if (b > bestB) {
+      bestB = b;
+      bestX = x;
+      bestY = y;
+    }
   }
 
+  p.x = bestX;
+  p.y = bestY;
   return false;
 }
 
@@ -126,13 +154,10 @@ class Particle {
   float y;
   float vx;
   float vy;
+  int age;
 
   void respawn(boolean zeroVelocity) {
-    boolean placed = chooseBrightSpawnPosition(this);
-    if (!placed) {
-      x = random(offsetX, offsetX + drawWidth);
-      y = random(offsetY, offsetY + drawHeight);
-    }
+    chooseBrightSpawnPosition(this);
 
     if (zeroVelocity) {
       vx = 0;
@@ -141,9 +166,13 @@ class Particle {
       vx *= 0.25;
       vy *= 0.25;
     }
+
+    age = 0;
   }
 
   void update() {
+    age++;
+
     float b = brightnessAtCanvas(x, y);
     float d = max(1, gradientSampleDistance);
 
@@ -152,6 +181,22 @@ class Particle {
 
     float ax = gx * lightAttractStrength + random(-driftStrength, driftStrength);
     float ay = gy * lightAttractStrength + random(-driftStrength, driftStrength);
+
+    float dx = x - spiralCenterX;
+    float dy = y - spiralCenterY;
+    float dist = max(1, sqrt(dx * dx + dy * dy));
+    float nx = dx / dist;
+    float ny = dy / dist;
+    float tx = -ny;
+    float ty = nx;
+    float swirlFalloff = 1.0 - constrain(dist / max(1, spiralMaxRadius), 0, 1);
+    float swirl = centerSwirlStrength * (0.35 + 0.65 * swirlFalloff);
+
+    ax += tx * swirl;
+    ay += ty * swirl;
+
+    ax -= nx * centerPullStrength;
+    ay -= ny * centerPullStrength;
 
     vx = (vx + ax) * velocityDamping;
     vy = (vy + ay) * velocityDamping;
@@ -168,21 +213,21 @@ class Particle {
     x += vx * moveScale;
     y += vy * moveScale;
 
-    if (x < 0) {
-      x += width;
-    } else if (x >= width) {
-      x -= width;
+    if (x < offsetX) {
+      x += drawWidth;
+    } else if (x >= offsetX + drawWidth) {
+      x -= drawWidth;
     }
 
-    if (y < 0) {
-      y += height;
-    } else if (y >= height) {
-      y -= height;
+    if (y < offsetY) {
+      y += drawHeight;
+    } else if (y >= offsetY + drawHeight) {
+      y -= drawHeight;
     }
 
     float localB = brightnessAtCanvas(x, y);
     float darkness = 1.0 - localB;
-    if (random(1) < darkRespawnChance * darkness) {
+    if (age > minSwirlFrames && random(1) < darkRespawnChance * darkness) {
       respawn(false);
     }
   }
@@ -238,6 +283,33 @@ boolean hasImageExtension(String fileName) {
     || fileName.endsWith(".tif")
     || fileName.endsWith(".tiff")
     || fileName.endsWith(".webp");
+}
+
+void resetSpiral() {
+  spiralCenterX = offsetX + drawWidth / 2.0;
+  spiralCenterY = offsetY + drawHeight / 2.0 + spiralCenterYOffset;
+  spiralRadiusCursor = 0;
+  spiralAngleCursor = random(TWO_PI);
+  spiralMaxRadius = min(drawWidth, drawHeight) * 0.5;
+}
+
+float[] nextSpiralSpawnPoint() {
+  float radius = spiralRadiusCursor;
+  float angle = spiralAngleCursor;
+
+  float x = spiralCenterX + cos(angle) * radius + random(-spiralJitter, spiralJitter);
+  float y = spiralCenterY + sin(angle) * radius + random(-spiralJitter, spiralJitter);
+
+  spiralAngleCursor += spiralAngleStep;
+  spiralRadiusCursor += spiralRadiusStep;
+
+  if (spiralRadiusCursor > spiralMaxRadius) {
+    spiralRadiusCursor = 0;
+  }
+
+  x = constrain(x, offsetX, offsetX + drawWidth - 1);
+  y = constrain(y, offsetY, offsetY + drawHeight - 1);
+  return new float[] {x, y};
 }
 
 void computeDrawArea() {
